@@ -1,0 +1,12 @@
+{
+  "name": "xt-exchange",
+  "description": "XT.COM 交易所 CLI — 现货/合约行情、下单、划转、提币，渐进式问答交互",
+  "version": "1.0.0",
+  "author": {
+    "name": "0xHarry",
+    "url": "https://github.com/realm520"
+  },
+  "repository": "https://github.com/realm520/xt-exchange-plugin",
+  "license": "MIT",
+  "keywords": ["xt", "exchange", "trading", "crypto", "futures", "spot"]
+}
