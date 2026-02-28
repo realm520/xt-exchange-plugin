@@ -17,16 +17,14 @@ XT.COM 交易所 Claude Code Plugin，支持现货和合约的渐进式交互操
 
 ## 安装
 
-```bash
-# 1. 添加 marketplace
-/plugin marketplace add realm520/xt-exchange-plugin
+在 Claude Code 中执行：
 
-# 2. 安装 plugin
-/plugin install xt-exchange@realm520-xt-exchange-plugin
-
-# 3. 安装 Python 依赖（首次使用）
-cd ~/.claude/plugins/<plugin-dir> && bash setup.sh
 ```
+claude plugin marketplace add realm520/xt-exchange-plugin
+claude plugin install xt-exchange@realm520-xt-exchange-plugin
+```
+
+> Python 依赖（requests）会在首次 Claude Code 会话启动时自动安装（通过 SessionStart hook）。
 
 ## 配置 API Key
 
