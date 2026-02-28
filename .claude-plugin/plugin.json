@@ -8,5 +8,6 @@
   },
   "repository": "https://github.com/realm520/xt-exchange-plugin",
   "license": "MIT",
-  "keywords": ["xt", "exchange", "trading", "crypto", "futures", "spot"]
+  "keywords": ["xt", "exchange", "trading", "crypto", "futures", "spot"],
+  "hooks": "./hooks/hooks.json"
 }

@@ -2,26 +2,14 @@
 
 当用户调用 `/xt-exchange` 时，遵循以下渐进式披露流程。
 
-## 脚本路径解析
+## 脚本路径
 
-执行以下 Bash 确定运行环境：
+`${CLAUDE_PLUGIN_ROOT}` 是插件安装目录，由 Claude Code 自动注入。
 
 ```bash
-# 找到 plugin 的 scripts 目录（相对于本 SKILL.md 所在位置向上两级）
-PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SCRIPTS="$PLUGIN_DIR/scripts"
-
-# Python：优先用 plugin 自带 venv，否则用系统 python3
-if [ -f "$PLUGIN_DIR/.venv/bin/python" ]; then
-  PYTHON="$PLUGIN_DIR/.venv/bin/python"
-elif [ -n "$XT_PYTHON" ]; then
-  PYTHON="$XT_PYTHON"
-else
-  PYTHON="python3"
-fi
-
-SPOT="$SCRIPTS/xt_spot.py"
-FUTURES="$SCRIPTS/xt_futures.py"
+PYTHON="${CLAUDE_PLUGIN_ROOT}/.venv/bin/python"
+SPOT="${CLAUDE_PLUGIN_ROOT}/scripts/xt_spot.py"
+FUTURES="${CLAUDE_PLUGIN_ROOT}/scripts/xt_futures.py"
 ```
 
 凭证文件：`~/.xt-exchange/credentials.json`
@@ -109,6 +97,10 @@ cat ~/.xt-exchange/credentials.json 2>/dev/null
 ## 命令参考
 
 ```bash
+PYTHON="${CLAUDE_PLUGIN_ROOT}/.venv/bin/python"
+SPOT="${CLAUDE_PLUGIN_ROOT}/scripts/xt_spot.py"
+FUTURES="${CLAUDE_PLUGIN_ROOT}/scripts/xt_futures.py"
+
 # ── 现货行情（无需 Key）──
 $PYTHON $SPOT ticker btc_usdt
 $PYTHON $SPOT ticker_24h btc_usdt
