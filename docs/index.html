@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>XT Exchange Plugin — Claude Code 插件文档</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Barlow:wght@700;800&display=swap" rel="stylesheet" />
+<style>
+/* ════════════════════════════════════════════════
+   XT Exchange Color System
+   Primary  : #C2F000  (neon lime — XT "充值" green)
+   Danger   : #F04040  (sell / loss red)
+   Bg       : #131416  (trading terminal dark)
+   ════════════════════════════════════════════════ */
+:root {
+  --bg:      #131416;
+  --bg2:     #1A1C1F;
+  --bg3:     #212428;
+  --bg4:     #2A2D33;
+  --green:   #C2F000;
+  --green2:  #AADA00;
+  --g-dim:   rgba(194,240,0,.1);
+  --g-glow:  rgba(194,240,0,.22);
+  --red:     #F04040;
+  --r-dim:   rgba(240,64,64,.1);
+  --blue:    #4DA6FF;
+  --t1:      #FFFFFF;
+  --t2:      #C4C8D0;
+  --t3:      #6B7180;
+  --t4:      #3E4251;
+  --border:  rgba(255,255,255,.07);
+  --border2: rgba(194,240,0,.25);
+  --sb:      240px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--t1);
+  font-size: 14px;
+  line-height: 1.75;
+  overflow-x: hidden;
+}
+
+/* subtle scanline texture */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,.18) 2px,
+    rgba(0,0,0,.18) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+  opacity: .35;
+}
+
+/* ════════════════════════════════════════════════
+   Ticker Strip
+   ════════════════════════════════════════════════ */
+.ticker {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 30px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+}
+.ticker-track {
+  display: flex;
+  animation: roll 36s linear infinite;
+  white-space: nowrap;
+  will-change: transform;
+}
+@keyframes roll { to { transform: translateX(-50%); } }
+.ti {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 22px;
+  border-right: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+.ti .s { color: var(--t2); font-weight: 600; letter-spacing: .02em; }
+.ti .p { color: var(--t1); }
+.ti .u { color: var(--green); }
+.ti .d { color: var(--red); }
+
+/* ════════════════════════════════════════════════
+   Topnav
+   ════════════════════════════════════════════════ */
+.nav {
+  position: fixed;
+  top: 30px; left: 0; right: 0;
+  height: 56px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  gap: 12px;
+  z-index: 200;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+}
+/* XT "X" mark — matches screenshot icon */
+.brand-icon {
+  position: relative;
+  width: 32px;
+  height: 32px;
+}
+.brand-icon svg { display: block; }
+
+.brand-name {
+  font-family: 'Barlow', sans-serif;
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--t1);
+  letter-spacing: .01em;
+  line-height: 1;
+}
+.brand-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--t3);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.nav-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 3px;
+  background: var(--g-dim);
+  color: var(--green);
+  border: 1px solid var(--border2);
+}
+.blink {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: blink 1.4s ease infinite;
+}
+@keyframes blink {
+  0%,100% { opacity: 1; }
+  50%      { opacity: .2; }
+}
+
+.nav-r { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+.nb {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 13px;
+  border-radius: 3px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: all .15s;
+  color: var(--t3);
+}
+.nb:hover { color: var(--t1); background: var(--bg3); border-color: var(--border); }
+.nb.cta {
+  background: var(--green);
+  color: #0d0e0f;
+  border-color: var(--green);
+}
+.nb.cta:hover { background: var(--green2); border-color: var(--green2); }
+
+/* ════════════════════════════════════════════════
+   Layout
+   ════════════════════════════════════════════════ */
+.layout {
+  display: flex;
+  padding-top: 86px;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* ════════════════════════════════════════════════
+   Sidebar
+   ════════════════════════════════════════════════ */
+.sidebar {
+  position: fixed;
+  top: 86px; left: 0; bottom: 0;
+  width: var(--sb);
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 18px 0 40px;
+}
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 99px; }
+
+.sb-grp { margin-bottom: 2px; }
+.sb-lbl {
+  padding: 10px 16px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--t4);
+}
+.sb-a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 16px;
+  font-size: 13px;
+  color: var(--t3);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: all .14s;
+}
+.sb-a:hover { color: var(--t2); background: rgba(255,255,255,.03); }
+.sb-a.on {
+  color: var(--green);
+  border-left-color: var(--green);
+  background: var(--g-dim);
+}
+.sb-a.indent { padding-left: 28px; font-size: 12.5px; }
+.sb-pip {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .4;
+  flex-shrink: 0;
+}
+.sb-a.on .sb-pip { opacity: 1; }
+
+/* ════════════════════════════════════════════════
+   Content
+   ════════════════════════════════════════════════ */
+.main { margin-left: var(--sb); flex: 1; min-width: 0; }
+.content { max-width: 800px; margin: 0 auto; padding: 40px 36px 100px; }
+
+/* ════════════════════════════════════════════════
+   Typography
+   ════════════════════════════════════════════════ */
+h1 {
+  font-family: 'Barlow', sans-serif;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -.01em;
+  color: var(--t1);
+  margin-bottom: 12px;
+}
+h1 em {
+  font-style: normal;
+  color: var(--green);
+}
+
+h2 {
+  font-family: 'Barlow', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--t1);
+  margin-top: 52px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  scroll-margin-top: 98px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  letter-spacing: .01em;
+}
+.h2-bar {
+  width: 3px; height: 18px;
+  background: var(--green);
+  border-radius: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px var(--g-glow);
+}
+
+h3 {
+  font-family: 'Barlow', sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--t1);
+  margin-top: 26px;
+  margin-bottom: 8px;
+  scroll-margin-top: 98px;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+p { color: var(--t2); margin-bottom: 14px; }
+a { color: var(--green); text-decoration: none; }
+a:hover { color: var(--green2); text-decoration: underline; }
+ul, ol { padding-left: 20px; color: var(--t2); margin-bottom: 14px; }
+li { margin-bottom: 5px; }
+li strong { color: var(--t1); }
+strong { color: var(--t1); font-weight: 600; }
+hr { border: none; border-top: 1px solid var(--border); margin: 44px 0; }
+
+/* ════════════════════════════════════════════════
+   Hero
+   ════════════════════════════════════════════════ */
+.hero {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--green);
+  border-radius: 4px;
+  padding: 36px 40px 32px;
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  top: -80px; right: -80px;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(194,240,0,.07) 0%, transparent 65%);
+  pointer-events: none;
+}
+.hero-eye {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 14px;
+}
+.hero-desc {
+  font-size: 14.5px;
+  color: var(--t2);
+  max-width: 520px;
+  margin-bottom: 26px;
+  line-height: 1.7;
+}
+
+/* stat row — XT trading header style */
+.stats {
+  display: flex;
+  gap: 0;
+  flex-wrap: wrap;
+}
+.stat-item {
+  padding: 8px 20px;
+  border-right: 1px solid var(--border);
+}
+.stat-item:first-child { padding-left: 0; }
+.stat-item:last-child { border-right: none; }
+.sv {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--green);
+  line-height: 1.2;
+}
+.sl {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-top: 1px;
+}
+
+/* ════════════════════════════════════════════════
+   Feature grid
+   ════════════════════════════════════════════════ */
+.fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 30px; }
+.fcard {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 18px 20px;
+  transition: border-color .2s, background .2s;
+  position: relative;
+  overflow: hidden;
+}
+.fcard:hover {
+  border-color: rgba(194,240,0,.2);
+  background: var(--bg3);
+}
+.fcard::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: var(--green);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.fcard:hover::before { opacity: .5; }
+
+.fcard-ico {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+.fcard h3 {
+  margin: 0 0 5px;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.fcard p { font-size: 12.5px; color: var(--t3); margin: 0; line-height: 1.55; }
+
+/* ════════════════════════════════════════════════
+   Code blocks — terminal style
+   ════════════════════════════════════════════════ */
+.code-box {
+  margin: 14px 0;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--bg);
+}
+.code-hd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+}
+.dots { display: flex; gap: 4px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; }
+.dr { background: #FF5F57; }
+.dy { background: #FFBD2E; }
+.dg { background: var(--green); }
+.clang {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--t3);
+  flex: 1;
+}
+.cpbtn {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Noto Sans SC', sans-serif;
+  padding: 3px 9px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--t3);
+  cursor: pointer;
+  transition: all .14s;
+}
+.cpbtn:hover { color: var(--green); border-color: var(--border2); }
+.cpbtn.ok { color: var(--green); border-color: var(--border2); }
+
+pre {
+  padding: 16px 18px;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  line-height: 1.72;
+  color: #b8bcc8;
+}
+pre::-webkit-scrollbar { height: 3px; }
+pre::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 99px; }
+
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--green);
+}
+pre code { background: none; border: none; padding: 0; color: inherit; font-size: inherit; }
+
+/* syntax */
+.kw  { color: #7EE8A2; }
+.str { color: #A5D6FF; }
+.cmt { color: #3E4455; font-style: italic; }
+.var { color: #79C0FF; }
+.pm  { color: #C2F000; }
+.lit { color: #FFD787; }
+
+/* ════════════════════════════════════════════════
+   Steps
+   ════════════════════════════════════════════════ */
+.steps { margin: 22px 0; }
+.step { position: relative; padding: 0 0 28px 50px; }
+.step:last-child { padding-bottom: 0; }
+.snum {
+  position: absolute;
+  left: 0; top: 0;
+  width: 30px; height: 30px;
+  border-radius: 3px;
+  background: var(--g-dim);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--green);
+}
+.sline {
+  position: absolute;
+  left: 14px; top: 34px; bottom: 4px;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--border2) 0%, transparent 100%);
+}
+.step:last-child .sline { display: none; }
+.step h3 { margin-top: 4px; }
+.step p { margin-bottom: 8px; }
+
+/* ════════════════════════════════════════════════
+   Callouts
+   ════════════════════════════════════════════════ */
+.note {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 3px;
+  margin: 14px 0;
+  font-size: 13.5px;
+}
+.ni { font-size: 15px; flex-shrink: 0; }
+.nb2 { color: var(--t2); }
+.nb2 strong { color: var(--t1); }
+.n-info   { background: var(--g-dim);  border: 1px solid rgba(194,240,0,.18); }
+.n-warn   { background: rgba(255,189,46,.08); border: 1px solid rgba(255,189,46,.2); }
+.n-danger { background: var(--r-dim);  border: 1px solid rgba(240,64,64,.22); }
+.n-ok     { background: rgba(78,210,150,.08); border: 1px solid rgba(78,210,150,.2); }
+
+/* ════════════════════════════════════════════════
+   Tables — XT order book style
+   ════════════════════════════════════════════════ */
+.tw { overflow-x: auto; margin: 12px 0; border-radius: 4px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  background: var(--bg3);
+  padding: 9px 13px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--t3);
+  border-bottom: 1px solid var(--border);
+  font-family: 'Barlow', sans-serif;
+}
+td {
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--border);
+  color: var(--t2);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(194,240,0,.025); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-family: 'Barlow', sans-serif;
+  letter-spacing: .04em;
+}
+.bg { background: var(--g-dim); color: var(--green); border: 1px solid rgba(194,240,0,.25); }
+.br { background: var(--r-dim); color: var(--red);   border: 1px solid rgba(240,64,64,.25); }
+.bb { background: rgba(77,166,255,.1); color: var(--blue); border: 1px solid rgba(77,166,255,.25); }
+.by { background: rgba(255,189,46,.1); color: #FFBD2E; border: 1px solid rgba(255,189,46,.25); }
+
+/* ════════════════════════════════════════════════
+   Chat demo
+   ════════════════════════════════════════════════ */
+.chat {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 20px 22px;
+  margin: 14px 0;
+}
+.cmsg { display: flex; gap: 10px; margin-bottom: 14px; }
+.cmsg:last-child { margin-bottom: 0; }
+.cav {
+  width: 28px; height: 28px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-family: 'Barlow', sans-serif;
+  font-weight: 800;
+}
+.au { background: var(--g-dim); border: 1px solid var(--border2); color: var(--green); }
+.ac { background: linear-gradient(135deg,#3a22d4,#1c6bdb); color: #fff; }
+.cwho {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--t4);
+  margin-bottom: 3px;
+  font-family: 'Barlow', sans-serif;
+}
+.ctxt { font-size: 13.5px; color: var(--t2); line-height: 1.6; }
+.ctxt .gp { color: var(--green); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+.ctxt .rp { color: var(--red); }
+.ctxt .up { color: var(--green); font-weight: 600; }
+
+/* ════════════════════════════════════════════════
+   Footer
+   ════════════════════════════════════════════════ */
+.footer {
+  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--t3);
+}
+.footer a { color: var(--t3); }
+.footer a:hover { color: var(--green); }
+
+/* ════════════════════════════════════════════════
+   Responsive
+   ════════════════════════════════════════════════ */
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .content { padding: 28px 18px 60px; }
+  .fgrid { grid-template-columns: 1fr; }
+  h1 { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════ Ticker ════ -->
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track">
+    <span class="ti"><span class="s">BTC/USDT</span><span class="p">97,234.50</span><span class="u">+1.23%</span></span>
+    <span class="ti"><span class="s">ETH/USDT</span><span class="p">3,421.80</span><span class="u">+0.87%</span></span>
+    <span class="ti"><span class="s">BNB/USDT</span><span class="p">598.40</span><span class="d">-0.34%</span></span>
+    <span class="ti"><span class="s">SOL/USDT</span><span class="p">188.65</span><span class="u">+2.41%</span></span>
+    <span class="ti"><span class="s">XRP/USDT</span><span class="p">2.1480</span><span class="u">+3.12%</span></span>
+    <span class="ti"><span class="s">DOGE/USDT</span><span class="p">0.3821</span><span class="d">-1.05%</span></span>
+    <span class="ti"><span class="s">ADA/USDT</span><span class="p">0.9134</span><span class="u">+0.62%</span></span>
+    <span class="ti"><span class="s">AVAX/USDT</span><span class="p">38.72</span><span class="d">-0.88%</span></span>
+    <span class="ti"><span class="s">XT/USDT</span><span class="p">3.4004</span><span class="d">-7.09%</span></span>
+    <span class="ti"><span class="s">LINK/USDT</span><span class="p">18.94</span><span class="u">+1.76%</span></span>
+    <!-- duplicate -->
+    <span class="ti"><span class="s">BTC/USDT</span><span class="p">97,234.50</span><span class="u">+1.23%</span></span>
+    <span class="ti"><span class="s">ETH/USDT</span><span class="p">3,421.80</span><span class="u">+0.87%</span></span>
+    <span class="ti"><span class="s">BNB/USDT</span><span class="p">598.40</span><span class="d">-0.34%</span></span>
+    <span class="ti"><span class="s">SOL/USDT</span><span class="p">188.65</span><span class="u">+2.41%</span></span>
+    <span class="ti"><span class="s">XRP/USDT</span><span class="p">2.1480</span><span class="u">+3.12%</span></span>
+    <span class="ti"><span class="s">DOGE/USDT</span><span class="p">0.3821</span><span class="d">-1.05%</span></span>
+    <span class="ti"><span class="s">ADA/USDT</span><span class="p">0.9134</span><span class="u">+0.62%</span></span>
+    <span class="ti"><span class="s">AVAX/USDT</span><span class="p">38.72</span><span class="d">-0.88%</span></span>
+    <span class="ti"><span class="s">XT/USDT</span><span class="p">3.4004</span><span class="d">-7.09%</span></span>
+    <span class="ti"><span class="s">LINK/USDT</span><span class="p">18.94</span><span class="u">+1.76%</span></span>
+  </div>
+</div>
+
+<!-- ════ Nav ════ -->
+<nav class="nav">
+  <a class="brand" href="#">
+    <!-- XT "X" chevron mark -->
+    <svg class="brand-icon" width="32" height="32" viewBox="0 0 32 32">
+      <rect width="32" height="32" rx="4" fill="#1E2024"/>
+      <path d="M5 7 L13.5 16 L5 25 H10.5 L16 19.5 L21.5 25 H27 L18.5 16 L27 7 H21.5 L16 12.5 L10.5 7 Z" fill="#C2F000"/>
+    </svg>
+    <div>
+      <div class="brand-name">XT Exchange</div>
+      <div class="brand-sub">Plugin Docs</div>
+    </div>
+  </a>
+  <div class="nav-tag">
+    <span class="blink"></span>
+    Claude Code Plugin
+  </div>
+  <div class="nav-r">
+    <a class="nb" href="https://www.xt.com/en/user/api" target="_blank">API 管理</a>
+    <a class="nb" href="https://github.com/realm520/xt-exchange-plugin" target="_blank">GitHub</a>
+    <a class="nb cta" href="https://www.xt.com/zh-CN" target="_blank">前往 XT.COM</a>
+  </div>
+</nav>
+
+<!-- ════ Layout ════ -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar" aria-label="文档目录">
+    <div class="sb-grp">
+      <div class="sb-lbl">入门</div>
+      <a class="sb-a on" href="#overview"><span class="sb-pip"></span>概述</a>
+      <a class="sb-a" href="#install"><span class="sb-pip"></span>安装</a>
+      <a class="sb-a" href="#apikey"><span class="sb-pip"></span>API Key 配置</a>
+      <a class="sb-a" href="#quickstart"><span class="sb-pip"></span>快速上手</a>
+    </div>
+    <div class="sb-grp">
+      <div class="sb-lbl">现货交易</div>
+      <a class="sb-a" href="#spot"><span class="sb-pip"></span>现货概览</a>
+      <a class="sb-a indent" href="#spot-mkt"><span class="sb-pip"></span>行情查询</a>
+      <a class="sb-a indent" href="#spot-acct"><span class="sb-pip"></span>账户操作</a>
+      <a class="sb-a indent" href="#spot-trade"><span class="sb-pip"></span>下单 / 撤单</a>
+      <a class="sb-a indent" href="#spot-asset"><span class="sb-pip"></span>资产管理</a>
+    </div>
+    <div class="sb-grp">
+      <div class="sb-lbl">合约交易</div>
+      <a class="sb-a" href="#futures"><span class="sb-pip"></span>合约概览</a>
+      <a class="sb-a indent" href="#fut-mkt"><span class="sb-pip"></span>行情查询</a>
+      <a class="sb-a indent" href="#fut-acct"><span class="sb-pip"></span>账户 / 持仓</a>
+      <a class="sb-a indent" href="#fut-trade"><span class="sb-pip"></span>开仓 / 平仓</a>
+    </div>
+    <div class="sb-grp">
+      <div class="sb-lbl">参考</div>
+      <a class="sb-a" href="#safety"><span class="sb-pip"></span>安全机制</a>
+      <a class="sb-a" href="#cli"><span class="sb-pip"></span>CLI 速查表</a>
+      <a class="sb-a" href="#ts"><span class="sb-pip"></span>故障排除</a>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+  <div class="content">
+
+    <!-- ═══ Hero ═══ -->
+    <section id="overview">
+      <div class="hero">
+        <div class="hero-eye">
+          <span class="blink"></span>
+          Claude Code Plugin · 官方文档
+        </div>
+        <h1>XT Exchange<br/><em>Plugin</em></h1>
+        <p class="hero-desc">
+          在 Claude Code 中用自然语言操控 XT.COM — 现货 & USDT-M 永续合约，渐进式问答，内置安全确认，API Key 本地加密存储。
+        </p>
+        <div class="stats">
+          <div class="stat-item"><div class="sv">800+</div><div class="sl">交易对</div></div>
+          <div class="stat-item"><div class="sv">2</div><div class="sl">交易类型</div></div>
+          <div class="stat-item"><div class="sv">24/7</div><div class="sl">实时行情</div></div>
+          <div class="stat-item"><div class="sv">0</div><div class="sl">数据上传</div></div>
+        </div>
+      </div>
+
+      <div class="fgrid">
+        <div class="fcard">
+          <div class="fcard-ico">📈</div>
+          <h3>现货交易</h3>
+          <p>行情 / K线 / 盘口 / 限价 & 市价下单 / 余额 / 历史订单，完整现货能力。</p>
+        </div>
+        <div class="fcard">
+          <div class="fcard-ico">📊</div>
+          <h3>USDT-M 永续合约</h3>
+          <p>开多 / 开空 / 平仓 / 资金费率 / 持仓 / 委托管理，fapi.xt.com 接口。</p>
+        </div>
+        <div class="fcard">
+          <div class="fcard-ico">🔐</div>
+          <h3>本地凭证存储</h3>
+          <p>API Key 保存于 <code>~/.xt-exchange/credentials.json</code>，权限 600，永不离开本机。</p>
+        </div>
+        <div class="fcard">
+          <div class="fcard-ico">🛡️</div>
+          <h3>操作安全确认</h3>
+          <p>下单 / 撤单 / 划转 / 提币均需明确确认，提币额外二次确认 + 不可逆警告。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 安装 ═══ -->
+    <h2 id="install"><span class="h2-bar"></span>安装</h2>
+    <p>在 Claude Code 中执行两条命令完成安装：</p>
+
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Claude Code Terminal</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'i1')">复制</button>
+      </div>
+      <pre id="i1"><span class="var">claude</span> plugin marketplace add realm520/xt-exchange-plugin
+<span class="var">claude</span> plugin install xt-exchange@realm520-xt-exchange-plugin</pre>
+    </div>
+
+    <div class="note n-info">
+      <span class="ni">⚡</span>
+      <div class="nb2"><strong>自动安装依赖：</strong>Python 依赖（<code>requests</code>）通过 <code>SessionStart</code> Hook 在首次会话启动时自动安装，无需手动操作。</div>
+    </div>
+
+    <h3>系统要求</h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th>依赖</th><th>最低版本</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>Python</td><td><code>3.8+</code></td><td>macOS / Linux 系统内置</td></tr>
+          <tr><td>requests</td><td><code>≥ 2.28.0</code></td><td>SessionStart Hook 自动安装</td></tr>
+          <tr><td>Claude Code</td><td>最新版</td><td>支持 Plugin Marketplace</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ═══ API Key ═══ -->
+    <h2 id="apikey"><span class="h2-bar"></span>API Key 配置</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="snum">1</div><div class="sline"></div>
+        <h3>在 XT.COM 创建 API Key</h3>
+        <p>登录 <a href="https://www.xt.com/en/user/api" target="_blank">XT.COM API 管理页面</a>，创建新 Key 并勾选权限：</p>
+        <div class="tw">
+          <table>
+            <thead><tr><th>权限</th><th>用途</th><th>建议</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge bg">Read</span></td><td>行情 / 余额 / 订单查询</td><td>必须开启</td></tr>
+              <tr><td><span class="badge by">Trade</span></td><td>下单 / 撤单 / 开平仓</td><td>按需开启</td></tr>
+              <tr><td><span class="badge bb">Transfer</span></td><td>账户间划转</td><td>按需开启</td></tr>
+              <tr><td><span class="badge br">Withdraw</span></td><td>提币到外部地址</td><td>谨慎开启</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="snum">2</div><div class="sline"></div>
+        <h3>保存凭证到本地</h3>
+        <p>将 Access Key 和 Secret Key 写入凭证文件：</p>
+        <div class="code-box">
+          <div class="code-hd">
+            <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+            <span class="clang">Bash</span>
+            <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'i2')">复制</button>
+          </div>
+          <pre id="i2">mkdir -p ~/.xt-exchange
+cat > ~/.xt-exchange/credentials.json &lt;&lt; <span class="str">'EOF'</span>
+{
+  <span class="str">"access_key"</span>: <span class="str">"your_access_key_here"</span>,
+  <span class="str">"secret_key"</span>: <span class="str">"your_secret_key_here"</span>
+}
+EOF
+chmod <span class="lit">600</span> ~/.xt-exchange/credentials.json</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="snum">3</div>
+        <h3>或让 Claude 引导你完成</h3>
+        <p>直接输入 <code>/xt-exchange</code>，当你请求需要认证的操作时，Claude 自动检测凭证是否存在，若缺失则逐步引导你输入并安全保存。</p>
+      </div>
+    </div>
+
+    <div class="note n-warn">
+      <span class="ni">💡</span>
+      <div class="nb2">也可通过环境变量临时传入：<code>XT_ACCESS_KEY=xxx XT_SECRET_KEY=yyy $PYTHON $SPOT balance</code>，适合一次性使用或 CI 场景。Secret Key 不会在对话中回显。</div>
+    </div>
+
+    <!-- ═══ 快速上手 ═══ -->
+    <h2 id="quickstart"><span class="h2-bar"></span>快速上手</h2>
+    <p>在 Claude Code 中输入 <code>/xt-exchange</code>，Claude 用渐进式问答引导操作，无需记忆命令。</p>
+
+    <div class="chat">
+      <div class="cmsg">
+        <div class="cav au">U</div>
+        <div><div class="cwho">你</div><div class="ctxt">/xt-exchange</div></div>
+      </div>
+      <div class="cmsg">
+        <div class="cav ac">C</div>
+        <div><div class="cwho">Claude</div><div class="ctxt">现货还是合约？</div></div>
+      </div>
+      <div class="cmsg">
+        <div class="cav au">U</div>
+        <div><div class="cwho">你</div><div class="ctxt">现货，查 BTC 价格和 24h 数据</div></div>
+      </div>
+      <div class="cmsg">
+        <div class="cav ac">C</div>
+        <div>
+          <div class="cwho">Claude</div>
+          <div class="ctxt">
+            BTC/USDT &nbsp; 最新价 <span class="gp">97,234.50</span><br/>
+            24H高 <span class="gp">98,100.00</span> &nbsp; 24H低 <span class="rp">96,480.00</span><br/>
+            涨跌幅 <span class="up">+1.23%</span> &nbsp;·&nbsp; 成交额 2.84B USDT
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note n-info">
+      <span class="ni">📌</span>
+      <div class="nb2">插件启动后不展示功能菜单，直接提问。<strong>最多 2 轮追问</strong>即执行操作，保持对话简洁高效。</div>
+    </div>
+
+    <hr/>
+
+    <!-- ═══════════ 现货 ═══════════ -->
+    <h2 id="spot"><span class="h2-bar"></span>现货交易</h2>
+    <p>现货接口对接 <code>sapi.xt.com</code>。行情查询<strong>无需 API Key</strong>，账户与交易操作需要认证。</p>
+
+    <h3 id="spot-mkt">行情查询（无需 API Key）</h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th>操作</th><th>命令示例</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>最新价格</td><td><code>ticker btc_usdt</code></td><td>实时最新成交价</td></tr>
+          <tr><td>24H 行情</td><td><code>ticker_24h btc_usdt</code></td><td>开/高/低/收、涨跌幅、成交量</td></tr>
+          <tr><td>盘口深度</td><td><code>depth btc_usdt --limit 10</code></td><td>买卖盘挂单列表</td></tr>
+          <tr><td>K 线数据</td><td><code>klines btc_usdt --interval 1h</code></td><td>支持 1m / 5m / 15m / 1h / 4h / 1d</td></tr>
+          <tr><td>交易对信息</td><td><code>symbol btc_usdt</code></td><td>精度、最小下单量、支持的链</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Bash — 行情示例</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'sm1')">复制</button>
+      </div>
+      <pre id="sm1"><span class="kw">$PYTHON</span> <span class="var">$SPOT</span> ticker     btc_usdt
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> ticker_24h eth_usdt
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> depth      btc_usdt <span class="pm">--limit</span> 20
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> klines     btc_usdt <span class="pm">--interval</span> 4h <span class="pm">--limit</span> 48
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> symbol     usdt         <span class="cmt"># 查询 USDT 支持的提币链</span></pre>
+    </div>
+
+    <h3 id="spot-acct">账户操作（需要 API Key）</h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th>操作</th><th>命令示例</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>全部余额</td><td><code>balance</code></td><td>所有非零币种余额 + 折合 USDT</td></tr>
+          <tr><td>单币余额</td><td><code>balance usdt</code></td><td>指定币种可用与冻结量</td></tr>
+          <tr><td>当前挂单</td><td><code>orders</code></td><td>所有未成交挂单</td></tr>
+          <tr><td>历史订单</td><td><code>history --limit 20</code></td><td>最近成交 / 撤销的记录</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Bash — 账户示例</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'sa1')">复制</button>
+      </div>
+      <pre id="sa1"><span class="kw">$PYTHON</span> <span class="var">$SPOT</span> balance              <span class="cmt"># 全部非零余额</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> balance usdt         <span class="cmt"># 单币查询</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> orders               <span class="cmt"># 当前挂单</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> history <span class="pm">--limit</span> 50</pre>
+    </div>
+
+    <h3 id="spot-trade">下单 / 撤单（需要 API Key + 确认）</h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th>操作</th><th>命令示例</th></tr></thead>
+        <tbody>
+          <tr><td>限价买入</td><td><code>buy btc_usdt --price 95000 --qty 0.001</code></td></tr>
+          <tr><td>限价卖出</td><td><code>sell btc_usdt --price 98000 --qty 0.001</code></td></tr>
+          <tr><td>市价买入（指定金额）</td><td><code>buy btc_usdt --market --quote_qty 500</code></td></tr>
+          <tr><td>市价卖出</td><td><code>sell btc_usdt --market --qty 0.001</code></td></tr>
+          <tr><td>撤销指定订单</td><td><code>cancel --id 123456789</code></td></tr>
+          <tr><td>一键撤全部</td><td><code>cancel_all</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Bash — 下单示例</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'st1')">复制</button>
+      </div>
+      <pre id="st1"><span class="cmt"># 限价单</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> buy  btc_usdt <span class="pm">--price</span> 95000 <span class="pm">--qty</span> 0.001
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> sell btc_usdt <span class="pm">--price</span> 98000 <span class="pm">--qty</span> 0.001
+
+<span class="cmt"># 市价单（买入指定 USDT 金额）</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> buy btc_usdt <span class="pm">--market</span> <span class="pm">--quote_qty</span> 500
+
+<span class="cmt"># 撤单</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> cancel <span class="pm">--id</span> 123456789
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> cancel_all</pre>
+    </div>
+
+    <h3 id="spot-asset">资产管理（划转 & 提币）</h3>
+
+    <div class="note n-danger">
+      <span class="ni">🚨</span>
+      <div class="nb2"><strong>提币不可撤销。</strong>执行前 Claude 会展示完整信息（币种、链名、数量、手续费、预计到账量、完整目标地址）并要求<strong>二次确认</strong>。</div>
+    </div>
+
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Bash — 资产管理</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'sas1')">复制</button>
+      </div>
+      <pre id="sas1"><span class="cmt"># 账户划转</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> transfer <span class="pm">--from</span> SPOT <span class="pm">--to</span> FUTURES_U <span class="pm">--currency</span> usdt <span class="pm">--amount</span> 500
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> transfer <span class="pm">--from</span> FUTURES_U <span class="pm">--to</span> SPOT <span class="pm">--currency</span> usdt <span class="pm">--amount</span> 100
+
+<span class="cmt"># 提币（chain 名称可通过 symbol 命令查询）</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> withdraw <span class="pm">--currency</span> usdt <span class="pm">--chain</span> <span class="str">"Ethereum"</span>   <span class="pm">--amount</span> 200 <span class="pm">--address</span> 0xABC...
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> withdraw <span class="pm">--currency</span> pol  <span class="pm">--chain</span> <span class="str">"Polygon POS"</span> <span class="pm">--amount</span> 100 <span class="pm">--address</span> 0xDEF...</pre>
+    </div>
+
+    <p>账户类型（<code>--from</code> / <code>--to</code>）：</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>类型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>SPOT</code></td><td>现货账户</td></tr>
+          <tr><td><code>LEVER</code></td><td>杠杆账户</td></tr>
+          <tr><td><code>FUTURES_U</code></td><td>USDT 本位合约账户</td></tr>
+          <tr><td><code>FUTURES_C</code></td><td>币本位合约账户</td></tr>
+          <tr><td><code>FINANCE</code></td><td>理财账户</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr/>
+
+    <!-- ═══════════ 合约 ═══════════ -->
+    <h2 id="futures"><span class="h2-bar"></span>合约交易</h2>
+    <p>合约接口对接 <code>fapi.xt.com</code>，支持 USDT-M 永续合约，数量单位为<strong>张（整数）</strong>，最小 1 张。</p>
+
+    <div class="note n-info">
+      <span class="ni">📌</span>
+      <div class="nb2">合约面值参考：<strong>BTC = 0.001 BTC / 张</strong>，<strong>ETH = 0.01 ETH / 张</strong>。下单请注意换算。</div>
+    </div>
+
+    <h3 id="fut-mkt">行情查询（无需 API Key）</h3>
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Bash — 合约行情</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'fm1')">复制</button>
+      </div>
+      <pre id="fm1"><span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> ticker       btc_usdt   <span class="cmt"># 最新价、涨跌幅、成交量</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> depth        btc_usdt   <span class="cmt"># 合约盘口深度</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> funding_rate btc_usdt   <span class="cmt"># 资金费率 & 下次结算时间</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> klines       btc_usdt <span class="pm">--interval</span> 1h <span class="pm">--limit</span> 48</pre>
+    </div>
+
+    <h3 id="fut-acct">账户 & 持仓（需要 API Key）</h3>
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Bash — 合约账户</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'fa1')">复制</button>
+      </div>
+      <pre id="fa1"><span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> account                   <span class="cmt"># 账户权益、保证金、未实现盈亏</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> positions                  <span class="cmt"># 当前所有持仓</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> orders                     <span class="cmt"># 当前委托列表</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> history <span class="pm">--limit</span> 20         <span class="cmt"># 历史委托记录</span></pre>
+    </div>
+
+    <h3 id="fut-trade">开仓 / 平仓（需要 API Key + 确认）</h3>
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Bash — 开平仓示例</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'ft1')">复制</button>
+      </div>
+      <pre id="ft1"><span class="cmt"># 开多（限价）</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> open_long  btc_usdt <span class="pm">--qty</span> 1 <span class="pm">--price</span> 95000
+
+<span class="cmt"># 开空（市价）</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> open_short btc_usdt <span class="pm">--qty</span> 1 <span class="pm">--market</span>
+
+<span class="cmt"># 平多（市价平仓）</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> close_long btc_usdt <span class="pm">--qty</span> 1 <span class="pm">--market</span>
+
+<span class="cmt"># 撤销委托</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> cancel <span class="pm">--id</span> 987654321</pre>
+    </div>
+
+    <hr/>
+
+    <!-- ═══ 安全 ═══ -->
+    <h2 id="safety"><span class="h2-bar"></span>安全机制</h2>
+
+    <div class="note n-ok">
+      <span class="ni">✅</span>
+      <div class="nb2">所有<strong>写操作</strong>（下单、撤单、划转、开平仓）执行前均展示完整参数，等待用户输入「确认」「yes」「对」后才执行。</div>
+    </div>
+
+    <h3>确认机制对照</h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th>操作类型</th><th>确认级别</th><th>展示内容</th></tr></thead>
+        <tbody>
+          <tr><td>下单 / 撤单</td><td><span class="badge by">一次确认</span></td><td>交易对、方向、价格、数量</td></tr>
+          <tr><td>账户划转</td><td><span class="badge by">一次确认</span></td><td>来源账户、目标账户、币种、金额</td></tr>
+          <tr><td>开仓 / 平仓</td><td><span class="badge by">一次确认</span></td><td>合约、方向、张数、价格</td></tr>
+          <tr><td>提币</td><td><span class="badge br">二次确认</span></td><td>币种 / 链名 / 数量 / 手续费 / 到账量 / 完整地址 + 不可逆警告</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>凭证安全</h3>
+    <ul>
+      <li>凭证文件权限 <code>600</code>（仅本人可读），Secret Key 不在对话中回显</li>
+      <li>支持环境变量 <code>XT_ACCESS_KEY</code> / <code>XT_SECRET_KEY</code> 临时传入</li>
+      <li>建议只开启实际需要的 API 权限，提币权限按需开启</li>
+    </ul>
+
+    <hr/>
+
+    <!-- ═══ CLI 速查 ═══ -->
+    <h2 id="cli"><span class="h2-bar"></span>CLI 速查表</h2>
+
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Bash — 完整命令参考</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'cliref')">复制</button>
+      </div>
+      <pre id="cliref"><span class="var">PYTHON</span>=<span class="str">"${CLAUDE_PLUGIN_ROOT}/.venv/bin/python"</span>
+<span class="var">SPOT</span>=<span class="str">"${CLAUDE_PLUGIN_ROOT}/scripts/xt_spot.py"</span>
+<span class="var">FUTURES</span>=<span class="str">"${CLAUDE_PLUGIN_ROOT}/scripts/xt_futures.py"</span>
+
+<span class="cmt"># ─── 现货行情（无需 Key） ──────────────────────────────</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> ticker       &lt;symbol&gt;
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> ticker_24h   &lt;symbol&gt;
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> depth        &lt;symbol&gt; [<span class="pm">--limit</span> N]
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> klines       &lt;symbol&gt; [<span class="pm">--interval</span> 1h] [<span class="pm">--limit</span> 24]
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> symbol       &lt;symbol_or_currency&gt;
+
+<span class="cmt"># ─── 现货账户（需要 Key） ──────────────────────────────</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> balance      [currency]
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> orders       [<span class="pm">--symbol</span> xxx]
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> history      [<span class="pm">--symbol</span> xxx] [<span class="pm">--limit</span> 20]
+
+<span class="cmt"># ─── 现货交易（需确认） ────────────────────────────────</span>
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> buy         &lt;symbol&gt; [<span class="pm">--price</span> P] [<span class="pm">--qty</span> Q] [<span class="pm">--market</span>] [<span class="pm">--quote_qty</span> Q]
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> sell        &lt;symbol&gt; [<span class="pm">--price</span> P] [<span class="pm">--qty</span> Q] [<span class="pm">--market</span>]
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> cancel      <span class="pm">--id</span> &lt;orderId&gt;
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> cancel_all  [<span class="pm">--symbol</span> xxx]
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> transfer    <span class="pm">--from</span> SPOT <span class="pm">--to</span> FUTURES_U <span class="pm">--currency</span> usdt <span class="pm">--amount</span> 100
+<span class="kw">$PYTHON</span> <span class="var">$SPOT</span> withdraw    <span class="pm">--currency</span> usdt <span class="pm">--chain</span> <span class="str">"Ethereum"</span> <span class="pm">--amount</span> 50 <span class="pm">--address</span> 0x...
+
+<span class="cmt"># ─── 合约行情（无需 Key） ──────────────────────────────</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> ticker       &lt;symbol&gt;
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> depth        &lt;symbol&gt;
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> funding_rate &lt;symbol&gt;
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> klines       &lt;symbol&gt; [<span class="pm">--interval</span> 1h] [<span class="pm">--limit</span> 24]
+
+<span class="cmt"># ─── 合约账户（需要 Key） ──────────────────────────────</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> account
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> positions    [<span class="pm">--symbol</span> xxx]
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> orders       [<span class="pm">--symbol</span> xxx]
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> history      [<span class="pm">--symbol</span> xxx] [<span class="pm">--limit</span> 20]
+
+<span class="cmt"># ─── 合约交易（需确认） ────────────────────────────────</span>
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> open_long   &lt;symbol&gt; <span class="pm">--qty</span> N [<span class="pm">--price</span> P] [<span class="pm">--market</span>]
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> open_short  &lt;symbol&gt; <span class="pm">--qty</span> N [<span class="pm">--price</span> P] [<span class="pm">--market</span>]
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> close_long  &lt;symbol&gt; <span class="pm">--qty</span> N [<span class="pm">--price</span> P] [<span class="pm">--market</span>]
+<span class="kw">$PYTHON</span> <span class="var">$FUTURES</span> cancel      <span class="pm">--id</span> &lt;orderId&gt;</pre>
+    </div>
+
+    <hr/>
+
+    <!-- ═══ 故障排除 ═══ -->
+    <h2 id="ts"><span class="h2-bar"></span>故障排除</h2>
+
+    <h3>❌ 提示"需要 API Key"</h3>
+    <p>检查凭证文件是否存在且格式正确：</p>
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Bash</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'ts1')">复制</button>
+      </div>
+      <pre id="ts1">cat ~/.xt-exchange/credentials.json
+ls -la ~/.xt-exchange/credentials.json   <span class="cmt"># 确认权限为 -rw-------</span></pre>
+    </div>
+
+    <h3>❌ 依赖未安装 / Python 找不到</h3>
+    <div class="code-box">
+      <div class="code-hd">
+        <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+        <span class="clang">Bash</span>
+        <button type="button" class="cpbtn" aria-label="复制代码" onclick="cp(this,'ts2')">复制</button>
+      </div>
+      <pre id="ts2">cd <span class="str">"$CLAUDE_PLUGIN_ROOT"</span>
+python3 -m venv .venv
+.venv/bin/pip install requests</pre>
+    </div>
+
+    <h3>❌ API 错误 [INVALID_SIGN]</h3>
+    <ul>
+      <li>Access Key / Secret Key 复制时含多余空格或换行</li>
+      <li>系统时间与 XT 服务器时差超过 60 秒，请同步本机时间</li>
+      <li>API Key 未开启对应权限（Trade / Transfer / Withdraw）</li>
+    </ul>
+
+    <h3>❌ 合约下单精度错误</h3>
+    <p>合约数量必须为<strong>整数（张）</strong>，最小 1 张。<code>--qty 0.5</code> 无效，应传 <code>--qty 1</code>。</p>
+
+    <hr/>
+    <p class="footer">
+      XT Exchange Plugin for Claude Code &nbsp;·&nbsp;
+      <a href="https://github.com/realm520/xt-exchange-plugin" target="_blank">GitHub</a> &nbsp;·&nbsp;
+      <a href="https://doc.xt.com" target="_blank">XT API 文档</a> &nbsp;·&nbsp;
+      <a href="https://www.xt.com/zh-CN" target="_blank">XT.COM</a>
+    </p>
+  </div>
+  </main>
+</div>
+
+<script>
+/* copy */
+function cp(btn, id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    const t = btn.textContent;
+    btn.textContent = '✓ 已复制';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = t; btn.classList.remove('ok'); }, 2000);
+  }).catch(() => {/* clipboard denied — silent fail */});
+}
+
+/* sidebar active: single observer for all headings */
+const as = document.querySelectorAll('.sb-a');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      as.forEach(a => a.classList.remove('on'));
+      const found = document.querySelector(`.sb-a[href="#${e.target.id}"]`);
+      if (found) found.classList.add('on');
+    }
+  });
+}, { rootMargin: '-86px 0px -60% 0px' });
+document.querySelectorAll('h2[id], h3[id]').forEach(h => observer.observe(h));
+</script>
+</body>
+</html>
