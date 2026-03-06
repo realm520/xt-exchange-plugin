@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "realm520-xt-exchange-plugin",
+  "description": "XT.COM 交易所 Claude Code 插件市场 — 现货/合约行情、下单、划转、提币",
+  "owner": {
+    "name": "0xHarry",
+    "url": "https://github.com/realm520"
+  },
+  "plugins": [
+    {
+      "name": "xt-exchange",
+      "description": "XT.COM 交易所 CLI — 现货/合约行情、下单、划转、提币，渐进式问答交互",
+      "version": "1.0.0",
+      "author": {
+        "name": "0xHarry",
+        "url": "https://github.com/realm520"
+      },
+      "homepage": "https://github.com/realm520/xt-exchange-plugin",
+      "tags": ["xt", "exchange", "trading", "crypto", "futures", "spot"],
+      "source": "./plugins/xt-exchange"
+    }
+  ]
+}
