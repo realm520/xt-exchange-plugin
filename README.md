@@ -17,6 +17,14 @@ A Claude Code plugin for interacting with the XT.COM exchange — spot and futur
 
 ## Installation
 
+### Option 1 — `npx skills` (recommended)
+
+```bash
+npx skills add https://github.com/realm520/xt-exchange-plugin
+```
+
+### Option 2 — Claude Code plugin marketplace
+
 Run in Claude Code:
 
 ```
